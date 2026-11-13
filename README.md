@@ -1,0 +1,54 @@
+# swift-particles
+
+Use this package when a picture holds many particles: a galaxy of a hundred thousand stars, dust that gathers into a word and settles on a mesh, sparks streaking past, confetti thrown into the air. Start from `Particles.Population`, a seed and a count. Each particle reads its own draws (`Particles.Draws`), takes a home in a shape (`Particles.Spiral`, `Disc`, `Box`, `Points` with the letters of a `Picture.Text`, `Surface` of a mesh, `Trace` of a path), moves by a motion that gives its place at any instant (`Particles.Orbit`, `Passage`, `Flight` with a `Flutter`), is seen through a `Picture.Scene.Camera` (`Particles.View`), and is drawn as light (`Particles.Mote` added up in a `Particles.Light`) or as paper (`Particles.Card` laid in `Particles.Cards`). Both hand the renderer one image as one `Picture.Element`. A particle has no state and nothing is stepped: any particle at any instant can be drawn alone, in any order, on any thread. The package draws through swift-picture and depends on swift-ballistics for flight and on swift-timeline for easing; it has no renderer of its own.
+
+## Laws
+
+- A particle is its ordinal in a population. Its draws are `Threefry.block` of swift-threefry, keyed by the population's seed, with the particle and the stream times 2³² plus half the index as counter, its first word for an even index and its second for an odd one, the top 53 bits over 2⁵³: in 0 up to 1, the same on every platform, and dependent only on the seed, the particle, the stream and the index. Streams below 2³² and indices below 2³³ draw distinct numbers. Give each use of a particle (its home, its look, its order in a passage) a stream of its own, so that changing one never moves another.
+- A `Particles.Shape` gives a `Particles.Home` (a place, and the shape's unit normal there where it has one) as a function of draws alone, and says which draws it reads. A spiral's homes lie between its inner radius and its reach, within half its thickness of z = 0, and, unless they stray, within `width` across an arm, the arms turned by `turn(at:)`, with normal +z. A disc's lie in its plane within its radius, evenly by area; a box's within its extent, evenly by volume, without a normal. `Points` picks one of its places, each equally; from a text it holds `Picture.Text.points(spacing:seed:)`, which all lie inside the glyphs. A `Surface` places a home on a mesh by `Mesh.Sampler` of swift-mesh, evenly by area, with the vertex normals interpolated there at unit length. A `Trace` places a home on a path flattened to within a tolerance, evenly by length. Shapes drawn from picture space (`Points` of a text, `Trace`) lie in the world's plane z = 0 with picture y turned up and the middle of their box at the origin.
+- A motion gives a place at an instant (a `Rational` number of seconds) and nothing else. `Orbit` turns a place about z by `rate × t × (radius / r)^shear` at a distance r from the axis, so a shear winds what it turns, and is the place itself at 0. `Passage` moves a particle of an order in 0…1 from one place to another: it leaves at `start + (end − each − start) × order`, takes `each`, and goes the share its `Timeline.Easing` gives, so order 0 leaves at the start and order 1 arrives at the end; before it leaves it is exactly at the first place and after it arrives exactly at the second. With a monotone easing and no turn it only ever comes nearer; a `turn` bends the way about an axis by `turn × 4s(1 − s)` at the share s, which leaves both ends and the distance to the end unchanged. `Flight` is a throw: along each axis a `Ballistics.Trajectory` with one drag, at its origin until its launch, plus a sway along x that grows as drag settles it; `pose(at:)` adds a spin about the piece's normal and a tumble about its width, two perpendicular unit axes at every instant.
+- `Particles.View` sees a place through a camera of swift-picture. Its position, normalised depth and distance are the camera's `sight(of:in:viewport:)`, bit for bit, made from the camera's products once; a place in front of the near plane is not seen. `scale` is how many picture units a unit of the world across the line of sight spans there, so a mote of a size in the world shrinks and dims with distance as a light does. A `Particles.Focus` blurs a place at a distance d by `aperture × |d − distance| / d`, the thin lens's circle of confusion.
+- A `Mote`'s whole light is its colour's pixel times its strength times `π × radius² / 3`, what a soft `Picture.Sprites.Sprite` of that colour and radius adds. `Light` spreads it over a soft disc of radius `√(radius² + blur²)`, at least `footprint` pixels, by the weights `(1 − d²/R²)²` at the pixel centres divided by their sum, so the raster gains exactly the mote's whole light wherever it falls between pixel centres: a particle that moves by less than a pixel does not flicker or dim, a blur spreads light without changing it, and a sharp mote is about its colour at its centre.
+- `add(trail:)` draws a particle read at evenly spaced instants across a shutter (`Particles.Shutter.instants(closing:)`): each straight piece between two motes takes an equal share of the motes' mean light, spread by the soft disc swept along the piece (the integral along it in closed form, again divided by the weights' sum). So a streak's light is the still particle's, a long streak shows no dashes, and a trail of equal motes is that mote: a still particle draws as a point.
+- Light adds, so the order of motes does not matter up to rounding and nothing is sorted. `element` is the light's rectangle filled with its raster as an image in a layer under `lighter`; colour above 1 is kept for a bloom or threshold to find, and alpha is held to 1. The same motes give the same raster, and the renderer draws it the same on every thread count.
+- A `Card` is a flat piece seen: the parallelogram its two projected half-axes span, or the ellipse inside it, of a colour times a brightness `1 − shade × (1 − f)` for f how squarely it faces the eye from either side. `Cards` lays cards far to near by distance, in the order added at equal distances, each over what is below. A card covers a pixel by the card filtered by a box 2h wide, h its blur in pixels and at least half a pixel: for the rectangle the product over its two pairs of sides of the share of that box between them, so the whole area is kept however wide the blur and a piece seen edge-on thins to nothing; for the ellipse the same smoothing across its edge.
+- A `Clearance` keeps a rectangle readable: the opacity of something of an extent is its `floor` where it reaches the rectangle, 1 from `feather` beyond, and `3u² − 2u³` of the share u of the feather between; among several, the least. Multiply a mote's strength by it (`faded(by:)`), or skip the card.
+
+## Costs
+
+Homes are functions of draws; a mesh home is a search over the mesh's triangles and allocates, a text's lattice is made once by `Points`. A consumer that draws many frames keeps its population's homes in an array, made once (100 000 homes in three shapes: about 0.45 s). Motions take a `Rational` instant and also seconds (`after:`), and `Shutter.seconds(closing:)` makes a shutter's instants seconds once, since a `Rational` is exact and slow to read for every particle. Spreading a sharp mote costs about the pixels of its disc twice, a streak about the pixels of its swept disc twice; trail pieces shorter together than a quarter of a pixel are spread as one.
+
+On an Apple silicon Mac with eight cores (arm64, macOS 27.2, release build, measured as processor time because other work held the machine at a load of about 50), a full-HD frame of 100 000 particles on one thread takes: a still galaxy turning (`Spiral` homes kept, `Orbit`, `View`, `Mote`, `Light`, and the caller's own colours) 0.31 s; the same through a shutter read at six instants 0.68 s; the population in the middle of a passage from the galaxy to a word, streaking, 1.1 s. The renderer draws the light, one image, in about 0.18 s of processor time, 0.03 s on eight threads. To use more cores, spread parts of the population into lights of their own on threads and `add` them in a fixed order: the raster is then the same for any number of threads. 1800 confetti cards with depth of field are laid in about 0.01 s.
+
+The `Threads` trait turns on swift-picture's `Threads`, so the tests draw through `Picture CPU` on several threads (`swift test --traits Threads`); without it they draw on one.
+
+## Example
+
+```swift
+import Particles
+
+let population = Particles.Population(seed: Threefry.Key(7, 2026), count: 100_000)
+let galaxy = Particles.Spiral(arms: 3, inner: 0.12, reach: 4.4, concentration: 1.7, winding: Radian(4.2), width: 0.28, stray: 0.16, thickness: 0.35)
+let orbit = Particles.Orbit(rate: Radian(0.35), radius: 1, shear: 0.6)
+let frame = Picture.Plane.Rectangle(llx: 0, lly: 0, urx: 1920, ury: 1080)
+let camera = try Picture.Scene.Camera(
+    projection: .perspective(fieldOfView: Radian(0.5), aspect: 16 / 9, near: 0.5, far: 100, depth: .unit),
+    at: Point(x: 0, y: 0, z: 10)
+)
+let view = Particles.View(camera: camera, viewport: frame, model: .rotation(aboutX: -1.05))
+let homes = population.particles.map { galaxy.home(population.draws(of: $0)).place }
+let shutter = Particles.Shutter(open: try Rational(numerator: 1, denominator: 48), samples: 6)
+
+func picture(at instant: Rational) -> Picture {
+    var light = Particles.Light(frame: frame)
+    for home in homes {
+        let motes = shutter.seconds(closing: instant).compactMap { time in
+            view.sight(of: orbit.place(of: home, after: time)).map {
+                Particles.Mote($0, size: 0.005, color: Picture.Color(red: 1, green: 0.8, blue: 0.6), strength: 1.5)
+            }
+        }
+        light.add(trail: motes)
+    }
+    return [light.element]
+}
+```
