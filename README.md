@@ -14,42 +14,9 @@ Use this package when a picture holds many particles: a galaxy of a hundred thou
 - `Mote.mixed(to:at:through:)` is a mote part of the way to another, the share held to 0…1: position along the straight line or the way a `Passage` bends, radius, strength and blur `a(1 − s) + bs`, colour mixed as written in sRGB; at 0 it is the first and at 1 the second, exactly.
 - A `Card` is a flat piece seen: the parallelogram its two projected half-axes span, or the ellipse inside it, of a colour times a brightness `1 − shade × (1 − f)` for f how squarely it faces the eye from either side. Under a `Particles.Sheen`, a light far away, it also glints: `strength × |n · h|^sharpness` of the way from that lit paper to the light's colour, n its normal and h the half-way direction between the light and the eye, so a tumbling piece flashes as it turns through that direction. `Cards` lays cards far to near by distance, in the order added at equal distances, each over what is below. A card covers a pixel by the card filtered by a box 2h wide, h its blur in pixels and at least half a pixel: for the rectangle the product over its two pairs of sides of the share of that box between them, so the whole area is kept however wide the blur and a piece seen edge-on thins to nothing; for the ellipse the same smoothing across its edge. A card is drawn within its `extent(scale:)`: the box of its parallelogram widened by twice its softness (its blur, at least half a pixel), which holds the whole blurred card unless its axes meet at less than 60°; `reach(scale:)` is the radius of the disc around its centre that holds the extent. `faded(by:)` fades its paper and glint alike.
 - A `Clearance` keeps a rectangle readable: the opacity of something of an extent is its `floor` where it reaches the rectangle, 1 from `feather` beyond, and `3u² − 2u³` of the share u of the feather between; among several, the least. Multiply a mote's strength by it, or fade a card by it (`faded(by:)` on either), giving a card its `reach` as the extent.
-
-## Costs
-
-Homes are functions of draws; a mesh home is a search over the mesh's triangles and allocates, a text's lattice is made once by `Points`. A consumer that draws many frames keeps its population's homes in an array, made once (100 000 homes in three shapes: about 0.45 s). Motions take a `Rational` instant and also seconds (`after:`), and `Shutter.seconds(closing:)` makes a shutter's instants seconds once, since a `Rational` is exact and slow to read for every particle; for the same reason a `Flight`'s launch is a `Double`: 90 000 flights are built in about 0.02 s and their launches read in about 1 ms a frame, against 0.1 s and 30 ms when each launch was a `Rational` (release build, the machine shared, so the times are rough). Spreading a sharp mote costs about the pixels of its disc twice, a streak about the pixels of its swept disc twice; trail pieces shorter together than a quarter of a pixel are spread as one.
-
-On an Apple silicon Mac with eight cores (arm64, macOS 27.2, release build, measured as processor time because other work held the machine at a load of about 50), a full-HD frame of 100 000 particles on one thread takes: a still galaxy turning (`Spiral` homes kept, `Orbit`, `View`, `Mote`, `Light`, and the caller's own colours) 0.31 s; the same through a shutter read at six instants 0.68 s; the population in the middle of a passage from the galaxy to a word, streaking, 1.1 s. The renderer draws the light, one image, in about 0.18 s of processor time, 0.03 s on eight threads. To use more cores, spread parts of the population into lights of their own on threads and `add` them in a fixed order: the raster is then the same for any number of threads. 1800 confetti cards with depth of field are laid in about 0.01 s.
-
-The `Threads` trait turns on swift-picture's `Threads`, so the tests draw through `Picture CPU` on several threads (`swift test --traits Threads`); without it they draw on one.
-
-## Example
-
-```swift
-import Particles
-
-let population = Particles.Population(seed: Threefry.Key(7, 2026), count: 100_000)
-let galaxy = Particles.Spiral(arms: 3, inner: 0.12, reach: 4.4, concentration: 1.7, winding: Radian(4.2), width: 0.28, stray: 0.16, thickness: 0.35)
-let orbit = Particles.Orbit(rate: Radian(0.35), radius: 1, shear: 0.6)
-let frame = Picture.Plane.Rectangle(llx: 0, lly: 0, urx: 1920, ury: 1080)
-let camera = try Picture.Scene.Camera(
-    projection: .perspective(fieldOfView: Radian(0.5), aspect: 16 / 9, near: 0.5, far: 100, depth: .unit),
-    at: Point(x: 0, y: 0, z: 10)
-)
-let view = Particles.View(camera: camera, viewport: frame, model: .rotation(aboutX: -1.05))
-let homes = population.particles.map { galaxy.home(population.draws(of: $0)).place }
-let shutter = Particles.Shutter(open: try Rational(numerator: 1, denominator: 48), samples: 6)
-
-func picture(at instant: Rational) -> Picture {
-    var light = Particles.Light(frame: frame)
-    for home in homes {
-        let motes = shutter.seconds(closing: instant).compactMap { time in
-            view.sight(of: orbit.place(of: home, after: time)).map {
-                Particles.Mote($0, size: 0.005, color: Picture.Color(red: 1, green: 0.8, blue: 0.6), strength: 1.5)
-            }
-        }
-        light.add(trail: motes)
-    }
-    return [light.element]
-}
-```
+- Homes are functions of draws; a mesh home is a search over the mesh's triangles and allocates, a text's lattice is made once by `Points`. A consumer that draws many frames keeps its population's homes in an array, made once (100 000 homes in three shapes: about 0.45 s).
+- Motions take a `Rational` instant and also seconds (`after:`), and `Shutter.seconds(closing:)` makes a shutter's instants seconds once, since a `Rational` is exact and slow to read for every particle; for the same reason a `Flight`'s launch is a `Double`: 90 000 flights are built in about 0.02 s and their launches read in about 1 ms a frame, against 0.1 s and 30 ms when each launch was a `Rational` (release build, the machine shared, so the times are rough).
+- Spreading a sharp mote costs about the pixels of its disc twice, a streak about the pixels of its swept disc twice; trail pieces shorter together than a quarter of a pixel are spread as one.
+- On an Apple silicon Mac with eight cores (arm64, macOS 27.2, release build, measured as processor time on a loaded machine), a full-HD frame of 100 000 particles on one thread takes: a still galaxy turning (`Spiral` homes kept, `Orbit`, `View`, `Mote`, `Light`) 0.31 s; the same through a shutter read at six instants 0.68 s; the population in the middle of a passage from the galaxy to a word, streaking, 1.1 s. The renderer draws the light, one image, in about 0.18 s of processor time, 0.03 s on eight threads. 1800 confetti cards with depth of field are laid in about 0.01 s.
+- To use more cores, spread parts of the population into lights of their own on threads and `add` them in a fixed order: the raster is then the same for any number of threads.
+- The `Threads` trait turns on swift-picture's `Threads`, so the tests draw through `Picture CPU` on several threads (`swift test --traits Threads`); without it they draw on one.
