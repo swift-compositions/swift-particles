@@ -77,7 +77,11 @@ extension Particles.Cards {
         guard columns.low <= columns.high, rows.low <= rows.high else { return }
         let paper = card.color.pixel
         let brightness = Float(Swift.min(Swift.max(card.brightness, 0), 1))
-        let source = SIMD4<Float>(paper.color.red * brightness, paper.color.green * brightness, paper.color.blue * brightness, paper.alpha)
+        let glint = Float(card.glint.isFinite ? Swift.min(Swift.max(card.glint, 0), 1) : 0)
+        let light = card.shine.with(alpha: 1).pixel.color
+        let lit = SIMD3<Float>(paper.color.red, paper.color.green, paper.color.blue) * brightness * (1 - glint)
+            + SIMD3<Float>(light.red, light.green, light.blue) * paper.alpha * glint
+        let source = SIMD4<Float>(lit.x, lit.y, lit.z, paper.alpha)
         var row = rows.low
         while row <= rows.high {
             var column = columns.low

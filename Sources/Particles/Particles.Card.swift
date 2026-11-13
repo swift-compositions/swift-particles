@@ -24,6 +24,13 @@ extension Particles {
         /// How much light the paper gives back, 0…1, a factor on its colour.
         public var brightness: Double
 
+        /// How much of a light it gives back as a glint, 0…1: the share of the way from the lit paper to the
+        /// light's colour.
+        public var glint: Double
+
+        /// The colour of the light it glints with.
+        public var shine: Picture.Color
+
         /// The blur radius in picture units.
         public var blur: Double
 
@@ -38,6 +45,8 @@ extension Particles {
             cut: Cut = .rectangle,
             color: Picture.Color,
             brightness: Double = 1,
+            glint: Double = 0,
+            shine: Picture.Color = .white,
             blur: Double = 0,
             distance: Double = 0
         ) {
@@ -47,6 +56,8 @@ extension Particles {
             self.cut = cut
             self.color = color
             self.brightness = brightness
+            self.glint = glint
+            self.shine = shine
             self.blur = blur
             self.distance = distance
         }
@@ -57,7 +68,8 @@ extension Particles.Card {
     /// A flat piece of a width and a height in the world, in a pose, seen: its centre and the ends of its two
     /// half-axes put through the view, so a piece far away is small and one turned edge-on is thin; its
     /// brightness `1 − shade × (1 − f)` for f how squarely it faces the eye, from either side; the sight's blur
-    /// and distance. Nil when the view does not see its centre or the end of a half-axis.
+    /// and distance; and, under a sheen, the glint its normal catches. Nil when the view does not see its centre or
+    /// the end of a half-axis.
     public init?(
         _ pose: Particles.Pose,
         width: Double,
@@ -65,6 +77,7 @@ extension Particles.Card {
         cut: Cut = .rectangle,
         color: Picture.Color,
         shade: Double = 0.5,
+        sheen: Particles.Sheen? = nil,
         through view: Particles.View
     ) {
         func end(_ axis: Vector<3, Double>, _ length: Double) -> Point<3, Double> {
@@ -75,7 +88,8 @@ extension Particles.Card {
             let side = view.sight(of: end(pose.across, width / 2)),
             let top = view.sight(of: end(pose.along, height / 2))
         else { return nil }
-        let facing = Swift.abs(view.direction(pose.normal).z)
+        let normal = view.direction(pose.normal)
+        let facing = Swift.abs(normal.z)
         self.init(
             center: middle.position,
             across: Vector(x: side.position[0] - middle.position[0], y: side.position[1] - middle.position[1]),
@@ -83,6 +97,8 @@ extension Particles.Card {
             cut: cut,
             color: color,
             brightness: 1 - shade * (1 - facing),
+            glint: sheen?.glint(normal: normal) ?? 0,
+            shine: sheen?.color ?? .white,
             blur: middle.blur,
             distance: middle.distance
         )
