@@ -58,12 +58,12 @@ extension Particles.Cards {
         return raster
     }
 
-    /// One card put over the pixels.
+    /// One card put over the pixels whose centres lie within its extent.
     func draw(_ card: Particles.Card, into pixels: inout [SIMD4<Float>], width: Int, height: Int) {
         let center = ((card.center[0] - frame.llx.underlying) * scale, (card.center[1] - frame.lly.underlying) * scale)
         let across = (card.across.x * scale, card.across.y * scale)
         let along = (card.along.x * scale, card.along.y * scale)
-        let half = Swift.max(card.blur * scale, 0.5)
+        let half = card.softness(scale: scale) * scale
         func slab(_ edge: (Double, Double), _ other: (Double, Double)) -> (x: Double, y: Double, width: Double)? {
             let length = (edge.0 * edge.0 + edge.1 * edge.1).squareRoot()
             guard length > 1e-12, length.isFinite else { return nil }
@@ -71,9 +71,15 @@ extension Particles.Cards {
             return (normal.0, normal.1, Swift.abs(normal.0 * other.0 + normal.1 * other.1))
         }
         guard let first = slab(across, along), let second = slab(along, across), center.0.isFinite, center.1.isFinite else { return }
-        let reach = (x: Swift.abs(across.0) + Swift.abs(along.0) + half, y: Swift.abs(across.1) + Swift.abs(along.1) + half)
-        let columns = (low: Swift.max(Int((center.0 - reach.x).rounded(.down)), 0), high: Swift.min(Int((center.0 + reach.x).rounded(.up)), width - 1))
-        let rows = (low: Swift.max(Int((center.1 - reach.y).rounded(.down)), 0), high: Swift.min(Int((center.1 + reach.y).rounded(.up)), height - 1))
+        let extent = card.extent(scale: scale)
+        let low = ((extent.llx.underlying - frame.llx.underlying) * scale, (extent.lly.underlying - frame.lly.underlying) * scale)
+        let high = ((extent.urx.underlying - frame.llx.underlying) * scale, (extent.ury.underlying - frame.lly.underlying) * scale)
+        guard low.0.isFinite, low.1.isFinite, high.0.isFinite, high.1.isFinite else { return }
+        func index(_ place: Double, _ rounding: FloatingPointRoundingRule, below count: Int) -> Int {
+            Int(Swift.min(Swift.max((place - 0.5).rounded(rounding), -1), Double(count)))
+        }
+        let columns = (low: Swift.max(index(low.0, .up, below: width), 0), high: Swift.min(index(high.0, .down, below: width), width - 1))
+        let rows = (low: Swift.max(index(low.1, .up, below: height), 0), high: Swift.min(index(high.1, .down, below: height), height - 1))
         guard columns.low <= columns.high, rows.low <= rows.high else { return }
         let paper = card.color.pixel
         let brightness = Float(Swift.min(Swift.max(card.brightness, 0), 1))

@@ -1,3 +1,4 @@
+import Numeric
 import Particles
 import Picture_CPU
 import Testing
@@ -77,6 +78,34 @@ extension `Particles Tests`.`Light adds every mote's whole light` {
             still.add(start)
             #expect(Self.close(streak.sum, still.sum))
         }
+    }
+
+    @Test
+    func `A persistence brightens a streak by a power of how much its length dims it, and 1 keeps its middle as bright as the still mote`() {
+        let mote = Particles.Mote(position: Tests.at(20.5, 40.5), radius: 4, color: Self.color)
+        var end = mote
+        end.position = Tests.at(100.5, 40.5)
+        var still = Particles.Light(frame: Self.frame)
+        var centred = mote
+        centred.position = Tests.at(60.5, 40.5)
+        still.add(centred)
+        let full = still.gain(of: [mote, end], persistence: 1)
+        #expect(abs(full - 15 * 80 / (16 * 4.0)) < 1e-9)
+        #expect(still.gain(of: [mote, mote], persistence: 1) == 1)
+        #expect(still.gain(of: [mote, end], persistence: 0) == 1)
+        for persistence in [0.0, 0.6, 1] {
+            var streak = Particles.Light(frame: Self.frame)
+            streak.add(trail: [mote, end], persistence: persistence)
+            let gain = Float(Double.exp(persistence * Double.log(full)))
+            #expect(Self.close(streak.sum, still.sum * gain, within: 1e-3))
+        }
+        var kept = Particles.Light(frame: Self.frame)
+        kept.add(trail: [mote, end], persistence: 1)
+        let (middle, centre) = (kept.raster[x: 60, y: 40].color.red, still.raster[x: 60, y: 40].color.red)
+        #expect(abs(middle - centre) < 0.05 * centre)
+        var nearer = end
+        nearer.position = Tests.at(50.5, 40.5)
+        #expect(still.gain(of: [mote, nearer], persistence: 1) < full)
     }
 
     @Test

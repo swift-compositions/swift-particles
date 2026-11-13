@@ -4,7 +4,8 @@ public import Picture
 extension Particles {
     /// A spiral galaxy in the plane z = 0 around the origin: arms that wind out from an inner radius to a
     /// reach, with particles crowded toward the centre, spread across each arm, a share of strays at any
-    /// angle, and a height that thins toward the rim. Its normal is +z.
+    /// angle, and a height that thins toward the rim. Its normal is +z. A home can also be kept in polar form
+    /// (`Polar`), so the spiral can turn and wind it over time.
     public struct Spiral: Sendable, Hashable {
         /// How many arms, at equal angles; none counts as one.
         public var arms: Cardinal
@@ -56,32 +57,67 @@ extension Particles {
 }
 
 extension Particles.Spiral {
+    /// The share of the way from the inner radius to the reach at a distance from the centre; 0 for a spiral
+    /// whose reach is not beyond its inner radius.
+    public func share(at distance: Double) -> Double {
+        let span = reach - inner
+        return span > 0 ? (distance - inner) / span : 0
+    }
+
     /// The angle the arms have turned through at a distance from the centre, before an arm's own direction:
     /// `winding` times the share of the way from the inner radius to the reach.
     public func turn(at distance: Double) -> Double {
-        let span = reach - inner
-        let out = span > 0 ? (distance - inner) / span : 0
-        return winding.underlying * out
+        winding.underlying * share(at: distance)
+    }
+
+    /// The direction of an arm's line at the inner radius: its share of a whole turn, `2π × arm / arms`.
+    public func direction(of arm: Ordinal) -> Double {
+        2 * Double.pi * Double(arm.rawValue) / Double(Swift.max(arms.rawValue, 1))
+    }
+
+    /// A particle's home in polar form: draw 0 its distance, draw 1 its arm, draw 2 whether it strays, draws 3
+    /// to 5 its place across the arm (or with draw 3 its angle as a stray), and draws 6 to 8 its height.
+    public func polar(_ draws: Particles.Draws) -> Polar {
+        let count = Swift.max(arms.rawValue, 1)
+        let near = draws[0]
+        let out = near > 0 ? Double.exp(Swift.max(concentration, 0) * Double.log(near)) : 0
+        let distance = inner + (reach - inner) * out
+        let arm = Swift.min(UInt((draws[1] * Double(count)).rounded(.down)), count - 1)
+        let aside: Double
+        if draws[2] < stray {
+            let round = draws[3]
+            aside = 2 * Double.pi * (round - round.rounded())
+        } else {
+            aside = width * Particles.centred(draws, 3) / Swift.max(distance, width, 1e-9)
+        }
+        return Polar(
+            distance: distance,
+            arm: Ordinal(arm),
+            aside: aside,
+            height: thickness / 2 * Particles.centred(draws, 6) * (1 - 0.6 * out)
+        )
+    }
+
+    /// The angle about z of a place in polar form: its arm's direction, plus the arms' turn at its distance
+    /// wound by `wound` more than `winding`, plus its angle aside, plus `turned`. A wound adds nothing at the
+    /// inner radius and all of itself at the reach, as the winding does; a turn that differs with the
+    /// distance, such as an `Orbit`'s with a shear, is `orbit.angle(at: polar.distance, after:)` as `turned`.
+    public func angle(of polar: Polar, turned: Radian<Double> = .zero, wound: Radian<Double> = .zero) -> Double {
+        direction(of: polar.arm) + (winding.underlying + wound.underlying) * share(at: polar.distance) + polar.aside + turned.underlying
+    }
+
+    /// The place of a place in polar form, turned and wound: at its distance from the z axis, at its angle
+    /// (`angle(of:turned:wound:)`), and at its height. Unturned and unwound it is the home the polar form was
+    /// drawn for.
+    public func place(of polar: Polar, turned: Radian<Double> = .zero, wound: Radian<Double> = .zero) -> Point<3, Double> {
+        let angle = angle(of: polar, turned: turned, wound: wound)
+        return Point(x: polar.distance * Double.cos(angle), y: polar.distance * Double.sin(angle), z: polar.height)
     }
 }
 
 extension Particles.Spiral: Particles.Shape {
-    /// A particle's home: draw 0 its distance, draw 1 its arm, draw 2 whether it strays, draws 3 to 5 its
-    /// place across the arm (or with draw 3 its angle as a stray), and draws 6 to 8 its height.
+    /// A particle's home: the place of its polar form (`polar(_:)`), unturned and unwound.
     public func home(_ draws: Particles.Draws) -> Particles.Home {
-        let count = Double(Swift.max(arms.rawValue, 1))
-        let near = draws[0]
-        let out = near > 0 ? Double.exp(Swift.max(concentration, 0) * Double.log(near)) : 0
-        let distance = inner + (reach - inner) * out
-        let arm = (draws[1] * count).rounded(.down)
-        let strays = draws[2] < stray
-        let across = width * Particles.centred(draws, 3)
-        let aside = strays ? 2 * Double.pi * draws[3] : across / Swift.max(distance, width, 1e-9)
-        let angle = 2 * Double.pi * arm / count + turn(at: distance) + aside
-        let height = thickness / 2 * Particles.centred(draws, 6) * (1 - 0.6 * out)
-        return Particles.Home(
-            place: Point(x: distance * Double.cos(angle), y: distance * Double.sin(angle), z: height),
-            normal: Vector(x: 0, y: 0, z: 1)
-        )
+        Particles.Home(place: place(of: polar(draws)), normal: Vector(x: 0, y: 0, z: 1))
     }
 }

@@ -1,3 +1,4 @@
+import Numeric
 public import Picture
 
 extension Particles {
@@ -10,7 +11,9 @@ extension Particles {
     /// raster is its whole light exactly, wherever it falls between pixel centres: a particle that moves less
     /// than a pixel neither flickers nor dims. A trail of motes read across a shutter spreads the same light
     /// along the way it travelled: each straight piece between two motes takes an equal share, spread by the
-    /// soft disc swept along the piece, the integral in closed form, again divided by the weights' sum.
+    /// soft disc swept along the piece, the integral in closed form, again divided by the weights' sum. A
+    /// persistence brightens a streak by a power of how much its length dims it, up to keeping the still mote's
+    /// brightness along the whole way.
     public struct Light: Sendable {
         /// The rectangle of the picture the raster covers.
         public let frame: Picture.Plane.Rectangle
@@ -73,14 +76,15 @@ extension Particles.Light {
     }
 
     /// Adds the light of a particle read at evenly spaced instants across a shutter: the mean of the motes'
-    /// whole light, spread along the way from each mote to the next, each piece of the way taking an equal
-    /// share. Pieces shorter together than a quarter of a pixel are spread as one straight piece with their
-    /// shares together, which keeps the light and saves spreading a disc for each. A trail of equal motes is
-    /// that mote, and one mote is itself.
-    public mutating func add(trail motes: some Swift.Collection<Particles.Mote>) {
+    /// whole light, times `gain(of:persistence:)`, spread along the way from each mote to the next, each piece
+    /// of the way taking an equal share. Pieces shorter together than a quarter of a pixel are spread as one
+    /// straight piece with their shares together, which keeps the light and saves spreading a disc for each.
+    /// With no persistence a trail of equal motes is that mote, one mote is itself, and a streak keeps the
+    /// still mote's whole light, as a camera's shutter does; a persistence of 1 keeps its brightness instead.
+    public mutating func add(trail motes: some Swift.Collection<Particles.Mote>, persistence: Double = 0) {
         guard let first = motes.first else { return }
         guard motes.contains(where: { $0 != first }) else { return add(first) }
-        let share = 0.5 / Float(motes.count - 1)
+        let share = 0.5 / Float(motes.count - 1) * Float(gain(of: motes, persistence: persistence))
         var run = (start: pixel(of: first.position), total: SIMD4<Float>.zero, spread: 0.0, pieces: 0.0)
         var previous = (mote: first, total: total(of: first))
         for (index, mote) in motes.dropFirst().enumerated() {
@@ -97,6 +101,33 @@ extension Particles.Light {
             }
             run = (at, .zero, 0, 0)
         }
+    }
+
+    /// How many times its whole light a trail is drawn with: `g^persistence`, where g is how much a streak of
+    /// the trail's length L dims the middle of its way below the centre of the still mote, both spread over the
+    /// soft disc of the motes' mean spread R in pixels, at least the footprint: `g = L / 2F(min(L/2, R))`,
+    /// F(x) = `x − 2x³/3R² + x⁵/5R⁴` the profile's integral out to x, so g is 1 for a still mote and
+    /// `15L / 16R` once the streak is longer than the disc. A persistence of 0 keeps the trail's light, 1 keeps
+    /// the brightness of its middle, and between them a long streak keeps a part of each.
+    public func gain(of trail: some Swift.Collection<Particles.Mote>, persistence: Double) -> Double {
+        guard persistence != 0, persistence.isFinite, let first = trail.first else { return 1 }
+        var length = 0.0
+        var spread = 0.0
+        var previous = pixel(of: first.position)
+        for mote in trail {
+            let at = pixel(of: mote.position)
+            let (across, down) = (at.x - previous.x, at.y - previous.y)
+            length += (across * across + down * down).squareRoot()
+            spread += mote.spread
+            previous = at
+        }
+        let radius = Swift.max(spread / Double(trail.count) * scale, footprint)
+        let half = Swift.min(length / 2, radius)
+        let (square, quartic) = (radius * radius, radius * radius * radius * radius)
+        let core = half - 2 * half * half * half / (3 * square) + half * half * half * half * half / (5 * quartic)
+        guard length > 0, core > 0, length.isFinite else { return 1 }
+        let gain = Double.exp(persistence * Double.log(length / (2 * core)))
+        return gain.isFinite ? gain : 1
     }
 
     /// Adds the light of another over the same rectangle at the same scale, pixel by pixel, so that parts of a

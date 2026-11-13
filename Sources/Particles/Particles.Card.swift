@@ -147,3 +147,45 @@ extension Particles.Card {
         }
     }
 }
+
+extension Particles.Card {
+    /// How far the card's blur reaches beyond its edges drawn at a scale of pixels to a unit of the picture,
+    /// in picture units: the box filter's half-width, the blur and at least half a pixel.
+    public func softness(scale: Double = 1) -> Double {
+        Swift.max(blur, 0.5 / (scale > 0 && scale.isFinite ? scale : 1))
+    }
+
+    /// The rectangle of the picture the card is drawn within at a scale of pixels to a unit: around its
+    /// centre, `|across.x| + |along.x|` across and `|across.y| + |along.y|` down to either side, the box of its
+    /// parallelogram, widened by twice its softness. `Cards` draws no pixel whose centre lies outside it, so a
+    /// caller can cull a card whose extent misses the frame, or measure its distance from a rectangle to keep
+    /// clear. It holds the whole blurred card unless its two axes meet at less than 60°, when the faint blur
+    /// beyond its sharpest corners is left out.
+    public func extent(scale: Double = 1) -> Picture.Plane.Rectangle {
+        let soft = 2 * softness(scale: scale)
+        let reach = (x: Swift.abs(across.x) + Swift.abs(along.x) + soft, y: Swift.abs(across.y) + Swift.abs(along.y) + soft)
+        return Picture.Plane.Rectangle(
+            llx: .init(center[0] - reach.x),
+            lly: .init(center[1] - reach.y),
+            urx: .init(center[0] + reach.x),
+            ury: .init(center[1] + reach.y)
+        )
+    }
+
+    /// The radius of a disc around the centre that holds the card's extent at a scale, for
+    /// `Clearance.opacity(at:extent:)`.
+    public func reach(scale: Double = 1) -> Double {
+        let soft = 2 * softness(scale: scale)
+        let x = Swift.abs(across.x) + Swift.abs(along.x) + soft
+        let y = Swift.abs(across.y) + Swift.abs(along.y) + soft
+        return (x * x + y * y).squareRoot()
+    }
+
+    /// The card seen through an opacity: its colour's alpha multiplied by it, so the paper and its glint both
+    /// fade, as `Mote.faded(by:)` fades a mote's light.
+    public func faded(by opacity: Double) -> Self {
+        var card = self
+        card.color = color.faded(by: Float(opacity))
+        return card
+    }
+}

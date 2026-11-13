@@ -52,3 +52,36 @@ extension Particles.Mote {
         return mote
     }
 }
+
+extension Particles.Mote {
+    /// This mote part of the way to another, the share held to 0…1: its position along the straight line to
+    /// the other's, or along the way a passage bends (`Passage.place(from:to:share:)` in the picture's plane);
+    /// its radius, strength and blur each `self × (1 − s) + other × s`; and its colour `mixed(inSRGBTo:at:)`.
+    /// At 0 it is this mote and at 1 the other, exactly.
+    public func mixed(to other: Self, at share: Double, through passage: Particles.Passage? = nil) -> Self {
+        guard share > 0 else { return self }
+        guard share < 1 else { return other }
+        let rest = 1 - share
+        let position: Picture.Plane.Point<2>
+        if let passage {
+            let place = passage.place(
+                from: Point(x: self.position[0], y: self.position[1], z: 0),
+                to: Point(x: other.position[0], y: other.position[1], z: 0),
+                share: share
+            )
+            position = Picture.Plane.Point<2>([place.x, place.y])
+        } else {
+            position = Picture.Plane.Point<2>([
+                self.position[0] * rest + other.position[0] * share,
+                self.position[1] * rest + other.position[1] * share,
+            ])
+        }
+        return Self(
+            position: position,
+            radius: radius * rest + other.radius * share,
+            color: color.mixed(inSRGBTo: other.color, at: share),
+            strength: strength * rest + other.strength * share,
+            blur: blur * rest + other.blur * share
+        )
+    }
+}

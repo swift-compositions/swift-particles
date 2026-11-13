@@ -87,4 +87,56 @@ extension `Particles Tests`.`Cards are paper laid far to near` {
         half.add(Particles.Card(center: Tests.at(50, 50), across: Vector(x: 10, y: 0), along: Vector(x: 0, y: 10), color: Self.red.faded(by: 0.5), glint: 1, shine: Self.blue))
         #expect(abs(half.raster[x: 50, y: 50].color.blue - 0.5) < 1e-6)
     }
+
+    @Test
+    func `A card is drawn within its extent, and the disc of its reach holds that extent`() {
+        let frame = Tests.rectangle(-40, -40, 180, 180)
+        for scale in [1.0, 2.5] {
+            for (index, particle) in Tests.population.particles.prefix(60).enumerated() {
+                let draws = Tests.population.draws(of: particle)
+                let angle = 2 * Double.pi * draws[0]
+                let skew = 0.6 * (draws[1] - 0.5)
+                let (c, s) = (Double.cos(angle), Double.sin(angle))
+                let (u, v) = (Double.cos(angle + Double.pi / 2 + skew), Double.sin(angle + Double.pi / 2 + skew))
+                let card = Particles.Card(
+                    center: Tests.at(10 + 80 * draws[2], 10 + 80 * draws[3]),
+                    across: Vector(x: 14 * draws[4] * c, y: 14 * draws[4] * s),
+                    along: Vector(x: 9 * draws[5] * u, y: 9 * draws[5] * v),
+                    cut: index % 2 == 0 ? .rectangle : .ellipse,
+                    color: Self.red,
+                    blur: 4 * draws[6] * draws[6]
+                )
+                var cards = Particles.Cards(frame: frame, scale: scale)
+                cards.add(card)
+                let extent = card.extent(scale: scale)
+                let raster = cards.raster
+                for row in 0..<Int(raster.height.rawValue) {
+                    for column in 0..<Int(raster.width.rawValue) where raster[x: Ordinal(UInt(column)), y: Ordinal(UInt(row))].alpha > 0 {
+                        let (x, y) = (-40 + (Double(column) + 0.5) / scale, -40 + (Double(row) + 0.5) / scale)
+                        #expect(x >= extent.llx.underlying && x <= extent.urx.underlying && y >= extent.lly.underlying && y <= extent.ury.underlying)
+                    }
+                }
+                let corner = Tests.at(extent.urx.underlying, extent.ury.underlying)
+                let (dx, dy) = (corner[0] - card.center[0], corner[1] - card.center[1])
+                #expect(abs((dx * dx + dy * dy).squareRoot() - card.reach(scale: scale)) < 1e-9)
+                if card.cut == .rectangle {
+                    let area = 4 * abs(card.across.x * card.along.y - card.across.y * card.along.x)
+                    #expect(abs(Self.coverage(cards) / (scale * scale) - area) < 0.01 * area + 1e-6)
+                }
+            }
+        }
+    }
+
+    @Test
+    func `A faded card fades its paper and its glint alike`() {
+        let card = Particles.Card(center: Tests.at(50, 50), across: Vector(x: 10, y: 0), along: Vector(x: 0, y: 10), color: Self.red, glint: 0.5, shine: Self.blue)
+        #expect(card.faded(by: 1) == card)
+        var cards = Particles.Cards(frame: Self.frame)
+        cards.add(card.faded(by: 0.25))
+        var whole = Particles.Cards(frame: Self.frame)
+        whole.add(card)
+        let (faded, full) = (cards.raster[x: 50, y: 50], whole.raster[x: 50, y: 50])
+        #expect(abs(faded.alpha - 0.25) < 1e-6)
+        #expect(abs(faded.color.red - 0.25 * full.color.red) < 1e-6 && abs(faded.color.blue - 0.25 * full.color.blue) < 1e-6)
+    }
 }

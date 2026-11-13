@@ -51,7 +51,7 @@ extension `Particles Tests`.`A particle's place follows from the seed, the parti
         let origin = Point<3, Double>(x: 1, y: 2, z: 3)
         let flight = try Particles.Flight(
             from: origin,
-            at: Tests.seconds(500),
+            after: 0.5,
             velocity: Vector(x: 2, y: 6, z: -1),
             acceleration: Vector(x: 0, y: -9.8, z: 0),
             drag: 1.5
@@ -63,8 +63,11 @@ extension `Particles Tests`.`A particle's place follows from the seed, the parti
         let there = flight.place(at: Tests.seconds(1500))
         #expect(abs(there.y - (2 + y.position(at: 1))) < 1e-12)
         #expect(abs(there.x - (1 + x.position(at: 1))) < 1e-12)
+        #expect(flight.launch == 0.5 && flight.flown(after: 0.2) == 0 && flight.flown(after: 1.5) == 1)
+        #expect(!flight.launched(by: Tests.seconds(499)) && flight.launched(by: Tests.seconds(500)))
+        #expect(flight.place(at: Tests.seconds(1500)) == flight.place(after: 1.5))
         #expect(throws: Ballistics.Trajectory<Double>.Error.drag) {
-            try Particles.Flight(from: origin, at: .zero, velocity: Vector(x: 0, y: 0, z: 0), acceleration: Vector(x: 0, y: 0, z: 0), drag: -1)
+            try Particles.Flight(from: origin, velocity: Vector(x: 0, y: 0, z: 0), acceleration: Vector(x: 0, y: 0, z: 0), drag: -1)
         }
     }
 
@@ -73,7 +76,6 @@ extension `Particles Tests`.`A particle's place follows from the seed, the parti
         let flutter = Particles.Flutter(spin: Radian(0.3), spinning: Radian(2), tumble: Radian(1), tumbling: Radian(7), sway: 0.2, swaying: Radian(3))
         let flight = try Particles.Flight(
             from: Point(x: 0, y: 0, z: 0),
-            at: .zero,
             velocity: Vector(x: 1, y: 4, z: 0),
             acceleration: Vector(x: 0, y: -3, z: 0),
             drag: 2,
