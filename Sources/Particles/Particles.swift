@@ -24,10 +24,8 @@ extension Particles {
     }
 
     /// Three draws as one centred on 0 within −1…1, their mean moved and stretched, so most fall near 0.
-    static func centred(_ draws: Particles.Draws, _ first: Ordinal) -> Double {
-        let second = Ordinal(first.rawValue + 1)
-        let third = Ordinal(first.rawValue + 2)
-        return (draws[first] + draws[second] + draws[third] - 1.5) / 1.5
+    static func centred(_ first: Double, _ second: Double, _ third: Double) -> Double {
+        (first + second + third - 1.5) / 1.5
     }
 }
 

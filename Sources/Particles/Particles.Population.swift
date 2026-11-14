@@ -1,4 +1,5 @@
 public import Picture
+public import Threefry
 
 extension Particles {
     /// A seeded population: `count` particles, each known by its ordinal from 0, whose draws follow from the

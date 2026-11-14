@@ -12,6 +12,8 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/swift-atoms/swift-ballistics.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-matrix.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-mesh.git", branch: "main"),
         .package(url: "https://github.com/swift-atoms/swift-numeric.git", branch: "main"),
         .package(url: "https://github.com/swift-atoms/swift-rational.git", branch: "main"),
         .package(
@@ -20,18 +22,24 @@ let package = Package(
             traits: [.trait(name: "Threads", condition: .when(traits: ["Threads"]))]
         ),
         .package(url: "https://github.com/swift-atoms/swift-standard-library-extensions.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-threefry.git", branch: "main"),
         .package(url: "https://github.com/swift-molecules/swift-timeline.git", branch: "main"),
+        .package(url: "https://github.com/swift-atoms/swift-vector.git", branch: "main"),
     ],
     targets: [
         .target(
             name: "Particles",
             dependencies: [
                 .product(name: "Ballistics", package: "swift-ballistics"),
+                .product(name: "Matrix", package: "swift-matrix"),
+                .product(name: "Mesh", package: "swift-mesh"),
                 .product(name: "Numeric", package: "swift-numeric"),
                 .product(name: "Picture", package: "swift-picture"),
                 .product(name: "Rational", package: "swift-rational"),
                 .product(name: "Standard Library Extensions", package: "swift-standard-library-extensions"),
+                .product(name: "Threefry", package: "swift-threefry"),
                 .product(name: "Timeline", package: "swift-timeline"),
+                .product(name: "Vector", package: "swift-vector"),
             ]
         ),
         .testTarget(

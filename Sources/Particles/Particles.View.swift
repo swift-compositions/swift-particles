@@ -1,4 +1,6 @@
+public import Matrix
 public import Picture
+public import Vector
 
 extension Particles {
     /// How a population is seen: through a `Picture.Scene.Camera` of swift-picture into a viewport of the

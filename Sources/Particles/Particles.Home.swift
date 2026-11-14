@@ -1,4 +1,5 @@
 public import Picture
+public import Vector
 
 extension Particles {
     /// Where a particle rests in a shape: a place in the world, and the shape's unit normal there where the

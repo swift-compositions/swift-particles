@@ -1,5 +1,6 @@
 import Numeric
 public import Picture
+import Vector
 
 extension Particles {
     /// A spiral galaxy in the plane z = 0 around the origin: arms that wind out from an inner radius to a
@@ -76,25 +77,31 @@ extension Particles.Spiral {
     }
 
     /// A particle's home in polar form: draw 0 its distance, draw 1 its arm, draw 2 whether it strays, draws 3
-    /// to 5 its place across the arm (or with draw 3 its angle as a stray), and draws 6 to 8 its height.
+    /// to 5 its place across the arm (or with draw 3 its angle as a stray), and draws 6 to 8 its height. The
+    /// draws are read in pairs, so a home costs five blocks, or four for a stray.
     public func polar(_ draws: Particles.Draws) -> Polar {
         let count = Swift.max(arms.rawValue, 1)
-        let near = draws[0]
+        let place = draws.pair(0)
+        let side = draws.pair(1)
+        let near = place.first
         let out = near > 0 ? Double.exp(Swift.max(concentration, 0) * Double.log(near)) : 0
         let distance = inner + (reach - inner) * out
-        let arm = Swift.min(UInt((draws[1] * Double(count)).rounded(.down)), count - 1)
+        let arm = Swift.min(UInt((place.second * Double(count)).rounded(.down)), count - 1)
         let aside: Double
-        if draws[2] < stray {
-            let round = draws[3]
+        if side.first < stray {
+            let round = side.second
             aside = 2 * Double.pi * (round - round.rounded())
         } else {
-            aside = width * Particles.centred(draws, 3) / Swift.max(distance, width, 1e-9)
+            let across = draws.pair(2)
+            aside = width * Particles.centred(side.second, across.first, across.second) / Swift.max(distance, width, 1e-9)
         }
+        let rise = draws.pair(3)
+        let height = Particles.centred(rise.first, rise.second, draws[8])
         return Polar(
             distance: distance,
             arm: Ordinal(arm),
             aside: aside,
-            height: thickness / 2 * Particles.centred(draws, 6) * (1 - 0.6 * out)
+            height: thickness / 2 * height * (1 - 0.6 * out)
         )
     }
 

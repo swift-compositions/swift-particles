@@ -1,4 +1,6 @@
-public import Picture
+public import Mesh
+import Picture
+public import Vector
 
 extension Particles {
     /// The surface of a mesh, every part of it as likely as its share of the area, by `Mesh.Sampler` of
@@ -23,7 +25,8 @@ extension Particles {
 extension Particles.Surface: Particles.Shape {
     /// A particle's home: draws 0, 1 and 2 as the sampler's point of the unit cube.
     public func home(_ draws: Particles.Draws) -> Particles.Home {
-        let location = sampler.location(draws[0], draws[1], draws[2])
+        let pair = draws.pair(0)
+        let location = sampler.location(pair.first, pair.second, draws[2])
         let normal = sampler.interpolate(normals, at: location)
         let length = (normal.x * normal.x + normal.y * normal.y + normal.z * normal.z).squareRoot()
         return Particles.Home(

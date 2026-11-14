@@ -1,4 +1,6 @@
 public import Picture
+public import Threefry
+public import Vector
 
 extension Particles {
     /// A finite set of places, each as likely as any other, such as points spread over the letters of a text.

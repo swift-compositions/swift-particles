@@ -1,5 +1,6 @@
 import Numeric
 public import Picture
+public import Vector
 
 extension Particles {
     /// A move of a population from one home to another over a span of time, staggered: each particle has an

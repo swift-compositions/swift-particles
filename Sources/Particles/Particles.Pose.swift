@@ -1,4 +1,5 @@
 public import Picture
+public import Vector
 
 extension Particles {
     /// A flat piece in the world: its place and the two unit directions along its width and its height. Its

@@ -1,5 +1,6 @@
 import Numeric
 public import Picture
+import Vector
 
 extension Particles {
     /// A flat disc of a radius around a centre, in the plane through the centre parallel to z = 0, every part
@@ -22,8 +23,9 @@ extension Particles {
 extension Particles.Disc: Particles.Shape {
     /// A particle's home: the root of draw 0 its share of the radius, draw 1 its angle.
     public func home(_ draws: Particles.Draws) -> Particles.Home {
-        let distance = radius * draws[0].squareRoot()
-        let angle = 2 * Double.pi * draws[1]
+        let pair = draws.pair(0)
+        let distance = radius * pair.first.squareRoot()
+        let angle = 2 * Double.pi * pair.second
         return Particles.Home(
             place: Point(x: center.x + distance * Double.cos(angle), y: center.y + distance * Double.sin(angle), z: center.z),
             normal: Vector(x: 0, y: 0, z: 1)

@@ -1,4 +1,5 @@
 public import Picture
+public import Vector
 
 extension Particles {
     /// A solid box along the axes around a centre, every part of it as likely as its share of the volume. It
@@ -21,10 +22,11 @@ extension Particles {
 extension Particles.Box: Particles.Shape {
     /// A particle's home: draws 0, 1 and 2 its place along x, y and z.
     public func home(_ draws: Particles.Draws) -> Particles.Home {
-        Particles.Home(
+        let pair = draws.pair(0)
+        return Particles.Home(
             place: Point(
-                x: center.x + size.x * (draws[0] - 0.5),
-                y: center.y + size.y * (draws[1] - 0.5),
+                x: center.x + size.x * (pair.first - 0.5),
+                y: center.y + size.y * (pair.second - 0.5),
                 z: center.z + size.z * (draws[2] - 0.5)
             )
         )

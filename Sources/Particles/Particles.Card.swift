@@ -1,4 +1,5 @@
 public import Picture
+public import Vector
 
 extension Particles {
     /// A flat piece of paper as the picture sees it, such as a piece of confetti: a parallelogram or the ellipse

@@ -1,5 +1,6 @@
 import Numeric
 public import Picture
+public import Vector
 
 extension Particles {
     /// A particle thrown from a place at a time with a velocity, under a constant acceleration such as

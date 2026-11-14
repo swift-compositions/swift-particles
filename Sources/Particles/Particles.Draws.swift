@@ -1,11 +1,12 @@
 public import Picture
+public import Threefry
 
 extension Particles {
-    /// The unit draws of one particle in one stream, read in any order: the draw at an index is
-    /// `Threefry.block` with the seed as key and, as counter, the particle and the stream times 2³² plus half
-    /// the index, its first word for an even index and its second for an odd one, the top 53 bits of it over
-    /// 2⁵³. So a draw lies in 0..<1, depends on nothing but the seed, the particle, the stream and the index,
-    /// and is the same on every platform. Draws are distinct for streams below 2³² and indices below 2³³.
+    /// The unit draws of one particle in one stream, read in any order: `Threefry.Draws` of swift-threefry
+    /// with the seed as key and the particle as item. So a draw lies in 0..<1, depends on nothing but the
+    /// seed, the particle, the stream and the index, and is the same on every platform; draws `2k` and
+    /// `2k + 1` are the two words of one block, read together by `pair(_:)`. Draws are distinct for streams
+    /// below 2³² and indices below 2³³.
     public struct Draws: Sendable, Hashable {
         /// The population's seed.
         public let seed: Threefry.Key
@@ -26,13 +27,19 @@ extension Particles {
 }
 
 extension Particles.Draws {
+    /// The draws as swift-threefry addresses them.
+    public var threefry: Threefry.Draws {
+        Threefry.Draws(key: seed, item: UInt64(particle.rawValue), stream: UInt64(stream.rawValue))
+    }
+
     /// The draw at an index, in 0..<1.
-    @inlinable
     public subscript(index: Ordinal) -> Double {
-        let counter = Threefry.Block(UInt64(particle.rawValue), (UInt64(stream.rawValue) << 32) &+ (UInt64(index.rawValue) >> 1))
-        let block = Threefry.block(key: seed, counter: counter)
-        let word = index.rawValue & 1 == 0 ? block.first : block.second
-        return Double(word >> 11) * 0x1p-53
+        threefry.unit(at: UInt64(index.rawValue), as: Double.self)
+    }
+
+    /// Draws `2 × pair` and `2 × pair + 1` at the cost of one: the two words of one block.
+    public func pair(_ pair: Ordinal) -> (first: Double, second: Double) {
+        threefry.pair(at: UInt64(pair.rawValue), as: Double.self)
     }
 
     /// The draws of the same particle in another stream.

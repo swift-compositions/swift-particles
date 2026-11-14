@@ -1,5 +1,6 @@
 import Numeric
 public import Picture
+public import Vector
 
 extension Particles {
     /// A light far away that flat pieces catch: a piece glints when its normal, from either side, lies near the
