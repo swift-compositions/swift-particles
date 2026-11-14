@@ -79,7 +79,7 @@ extension Particles.Mote {
         return Self(
             position: position,
             radius: radius * rest + other.radius * share,
-            color: color.mixed(inSRGBTo: other.color, at: share),
+            color: color.interpolated(inSRGBTo: other.color, at: share),
             strength: strength * rest + other.strength * share,
             blur: blur * rest + other.blur * share
         )

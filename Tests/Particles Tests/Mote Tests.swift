@@ -33,7 +33,7 @@ extension `Particles Tests`.`A mote mixes part of the way to another` {
         #expect(abs(mixed.radius - (0.7 + 1.6 * share)) < 1e-12)
         #expect(abs(mixed.strength - (0.3 + 1.4 * share)) < 1e-12)
         #expect(abs(mixed.blur - (0.1 + 1.2 * share)) < 1e-12)
-        #expect(mixed.color == Self.start.color.mixed(inSRGBTo: Self.end.color, at: share))
+        #expect(mixed.color == Self.start.color.interpolated(inSRGBTo: Self.end.color, at: share))
         let bent = Self.start.mixed(to: Self.end, at: share, through: Self.passage)
         let place = Self.passage.place(from: Point(x: 10.1, y: 20.3, z: 0), to: Point(x: 70.7, y: -5.9, z: 0), share: share)
         #expect(bent.position == Tests.at(place.x, place.y))

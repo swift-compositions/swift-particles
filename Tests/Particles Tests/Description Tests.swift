@@ -115,12 +115,18 @@ extension `Particles Tests`.`Light and cards are descriptions, drawn by the rend
         #expect(light == other && light.hashValue == other.hashValue && light != moved)
         #expect(light.element == other.element && light.element.hashValue == other.element.hashValue)
         #expect(light.element != moved.element)
-        #expect(light.image.raster.isEmpty)
-        #expect(light.image.source?.drawing(as: Particles.Light.self) == light)
+        guard case .drawing(let named) = light.image.content else {
+            Issue.record("a light's image holds pixels")
+            return
+        }
+        #expect(named.drawing(as: Particles.Light.self) == light)
         let (cards, again) = (Self.cards, Self.cards)
         #expect(cards.element == again.element && cards.element.hashValue == again.element.hashValue)
-        #expect(cards.image.raster.isEmpty)
-        #expect(cards.image.source?.drawing(as: Particles.Cards.self) == cards)
+        guard case .drawing(let laid) = cards.image.content else {
+            Issue.record("cards' image holds pixels")
+            return
+        }
+        #expect(laid.drawing(as: Particles.Cards.self) == cards)
     }
 
     @Test(arguments: [1, 3, 8] as [Cardinal])
