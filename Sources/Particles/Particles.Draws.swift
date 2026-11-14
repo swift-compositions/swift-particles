@@ -29,17 +29,22 @@ extension Particles {
 extension Particles.Draws {
     /// The draws as swift-threefry addresses them.
     public var threefry: Threefry.Draws {
-        Threefry.Draws(key: seed, item: UInt64(particle.rawValue), stream: UInt64(stream.rawValue))
+        Threefry.Draws(key: seed, item: Self.word(particle), stream: Self.word(stream))
     }
 
     /// The draw at an index, in 0..<1.
     public subscript(index: Ordinal) -> Double {
-        threefry.unit(at: UInt64(index.rawValue), as: Double.self)
+        threefry.unit(at: Self.word(index), as: Double.self)
     }
 
     /// Draws `2 × pair` and `2 × pair + 1` at the cost of one: the two words of one block.
     public func pair(_ pair: Ordinal) -> (first: Double, second: Double) {
-        threefry.pair(at: UInt64(pair.rawValue), as: Double.self)
+        threefry.pair(at: Self.word(pair), as: Double.self)
+    }
+
+    /// An ordinal as the 64-bit word swift-threefry addresses by.
+    private static func word(_ ordinal: Ordinal) -> UInt64 {
+        UInt64(ordinal.rawValue)
     }
 
     /// The draws of the same particle in another stream.
