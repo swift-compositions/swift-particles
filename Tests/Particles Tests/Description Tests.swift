@@ -87,10 +87,10 @@ extension `Particles Tests`.`Light and cards are descriptions, drawn by the rend
         return raster
     }
 
-    /// The digests of what was drawn before light and cards were descriptions.
+    /// The digests of what light and cards draw, recorded with colours on the sRGB curve in double precision.
     static let recorded: [String: UInt64] = [
-        "bloomed": 8_711_241_658_518_571_594, "cards": 7_760_281_650_374_821_177, "cards drawn": 2_761_873_846_558_930_950,
-        "light": 13_717_172_556_423_884_762, "light drawn": 17_933_981_487_474_538_351,
+        "bloomed": 18_172_267_169_337_734_766, "cards": 5_932_918_199_839_255_343, "cards drawn": 9_196_228_173_540_443_515,
+        "light": 6_805_933_833_124_377_133, "light drawn": 454_025_631_783_596_875,
     ]
 
     @Test
