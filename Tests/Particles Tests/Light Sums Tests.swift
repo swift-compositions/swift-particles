@@ -1,5 +1,6 @@
-@testable import Particles
 import Testing
+
+@testable import Particles
 
 extension `Particles Tests` {
     @Suite
@@ -100,7 +101,8 @@ extension `Particles Tests`.`A swept disc spreads the same bits as the plain spr
         guard rows.high >= 0, rows.low < height, rows.low <= rows.high else { return }
         var weights: [Double] = []
         var sum = 0.0
-        for row in rows.low...rows.high {
+        var row = rows.low
+        while row <= rows.high {
             let span = columns(row)
             var column = span.low
             while column <= span.high {
@@ -109,12 +111,15 @@ extension `Particles Tests`.`A swept disc spreads the same bits as the plain spr
                 sum += part
                 column += 1
             }
+            row += 1
         }
         guard sum > 0 else { return }
         let share = 1 / sum
         var index = 0
-        for row in rows.low...rows.high {
+        row = rows.low
+        while row <= rows.high {
             let span = columns(row)
+            defer { row += 1 }
             guard span.low <= span.high else { continue }
             if row >= 0, row < height {
                 var column = Swift.max(span.low, 0)
@@ -161,7 +166,7 @@ extension `Particles Tests`.`A swept disc spreads the same bits as the plain spr
         #expect(sums.values.count == plain.count)
         var differ = 0
         for (fast, reference) in zip(sums.values, plain) {
-            for lane in 0..<4 where fast[lane].bitPattern != reference[lane].bitPattern { differ += 1 }
+            for lane in fast.indices where fast[lane].bitPattern != reference[lane].bitPattern { differ += 1 }
         }
         #expect(differ == 0)
         #expect(plain.contains { $0 != .zero })
