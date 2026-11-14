@@ -2,9 +2,10 @@ public import Picture
 
 extension Particles {
     /// Cards laid over a rectangle of the picture far to near into a raster of their own, handed to a renderer
-    /// as one image. Paper hides what is behind it, so cards are sorted by distance, farthest first and, at
+    /// as one image. Cards are a description until their pixels are asked for, by `raster` or by a renderer
+    /// drawing their `image`, which names them as its source. Paper hides what is behind it, so cards are sorted by distance, farthest first and, at
     /// equal distances, in the order they were added, and each is put over what is drawn so far.
-    public struct Cards: Sendable {
+    public struct Cards: Sendable, Hashable {
         /// The rectangle of the picture the raster covers.
         public let frame: Picture.Plane.Rectangle
 
@@ -37,7 +38,7 @@ extension Particles.Cards {
         )
     }
 
-    /// The cards drawn far to near as working pixels.
+    /// The cards drawn now, far to near, as working pixels.
     public var raster: Raster<Picture.Pixel> {
         let (width, height) = size
         var pixels = [SIMD4<Float>](repeating: .zero, count: width * height)
@@ -113,13 +114,21 @@ extension Particles.Cards {
         }
     }
 
-    /// The cards as an image placed over their rectangle.
+    /// The cards as an image placed over their rectangle, naming the cards as its source: the renderer that
+    /// draws it lays them, once.
     public var image: Picture.Image {
-        Picture.Image(raster, placement: Particles.placement(of: frame, scale: scale))
+        Picture.Image(self, placement: Particles.placement(of: frame, scale: scale))
     }
 
     /// The cards as an element: their rectangle filled with the image, over what is behind.
     public var element: Picture.Element {
         .fill(Particles.path(of: frame), .image(image))
+    }
+}
+
+extension Particles.Cards: Picture.Image.Drawing {
+    /// The cards drawn, as `raster` draws them; they draw nothing through the renderer.
+    public func raster(through renderer: Picture.Renderer) throws(Picture.Renderer.Error) -> Raster<Picture.Pixel> {
+        raster
     }
 }

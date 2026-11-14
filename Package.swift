@@ -19,6 +19,7 @@ let package = Package(
             branch: "main",
             traits: [.trait(name: "Threads", condition: .when(traits: ["Threads"]))]
         ),
+        .package(url: "https://github.com/swift-atoms/swift-standard-library-extensions.git", branch: "main"),
         .package(url: "https://github.com/swift-molecules/swift-timeline.git", branch: "main"),
     ],
     targets: [
@@ -29,6 +30,7 @@ let package = Package(
                 .product(name: "Numeric", package: "swift-numeric"),
                 .product(name: "Picture", package: "swift-picture"),
                 .product(name: "Rational", package: "swift-rational"),
+                .product(name: "Standard Library Extensions", package: "swift-standard-library-extensions"),
                 .product(name: "Timeline", package: "swift-timeline"),
             ]
         ),
@@ -38,6 +40,7 @@ let package = Package(
                 .target(name: "Particles"),
                 .product(name: "Numeric", package: "swift-numeric"),
                 .product(name: "Picture CPU", package: "swift-picture"),
+                .product(name: "Standard Library Extensions", package: "swift-standard-library-extensions"),
             ]
         ),
     ],
