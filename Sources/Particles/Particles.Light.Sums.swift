@@ -103,7 +103,7 @@ extension Particles.Light.Sums {
         guard length > 1e-6 else { return point(x: start.x, y: start.y, radius: radius, total: total) }
         let direction = (x: across / length, y: down / length)
         let square = radius * radius
-        let quartic = square * square
+        let quintic = 5 * (square * square)
         deposit(
             rows: (
                 Int((Swift.min(start.y, end.y) - radius - 0.5).rounded(.down)) + 1,
@@ -137,8 +137,8 @@ extension Particles.Light.Sums {
                 let high = Swift.min(length - along, half)
                 guard high > low else { return 0 }
                 let (low2, high2) = (low * low, high * high)
-                let upper = high * (rest * rest - (2.0 / 3.0) * rest * high2 / square + high2 * high2 / (5 * quartic))
-                let lower = low * (rest * rest - (2.0 / 3.0) * rest * low2 / square + low2 * low2 / (5 * quartic))
+                let upper = high * (rest * rest - (2.0 / 3.0) * rest * high2 / square + high2 * high2 / quintic)
+                let lower = low * (rest * rest - (2.0 / 3.0) * rest * low2 / square + low2 * low2 / quintic)
                 return upper - lower
             },
             total: total
@@ -163,39 +163,47 @@ extension Particles.Light.Sums {
         var row = rows.low
         while row <= rows.high {
             let span = columns(row)
-            var column = span.low
-            while column <= span.high {
-                let part = weight(column, row)
-                scratch.append(part)
-                sum += part
-                column += 1
+            if span.low <= span.high {
+                let start = scratch.count - span.low
+                scratch.append(contentsOf: repeatElement(0, count: span.high - span.low + 1))
+                scratch.withUnsafeMutableBufferPointer { parts in
+                    var column = span.low
+                    while column <= span.high {
+                        let part = weight(column, row)
+                        unsafe parts[start + column] = part
+                        sum += part
+                        column += 1
+                    }
+                }
             }
             row += 1
         }
         guard sum > 0 else { return }
         let share = 1 / sum
         let weights = scratch
-        values.withUnsafeMutableBufferPointer { pixels in
-            var index = 0
-            var row = rows.low
-            while row <= rows.high {
-                let span = columns(row)
-                guard span.low <= span.high else {
-                    row += 1
-                    continue
-                }
-                if row >= 0, row < height {
-                    let base = row * width
-                    var column = Swift.max(span.low, 0)
-                    let last = Swift.min(span.high, width - 1)
-                    while column <= last {
-                        let part = weights[index + column - span.low]
-                        if part > 0 { unsafe pixels[base + column] += total * Float(part * share) }
-                        column += 1
+        weights.withUnsafeBufferPointer { weights in
+            values.withUnsafeMutableBufferPointer { pixels in
+                var index = 0
+                var row = rows.low
+                while row <= rows.high {
+                    let span = columns(row)
+                    guard span.low <= span.high else {
+                        row += 1
+                        continue
                     }
+                    if row >= 0, row < height {
+                        let base = row * width
+                        var column = Swift.max(span.low, 0)
+                        let last = Swift.min(span.high, width - 1)
+                        while column <= last {
+                            let part = unsafe weights[index + column - span.low]
+                            if part > 0 { unsafe pixels[base + column] += total * Float(part * share) }
+                            column += 1
+                        }
+                    }
+                    index += span.high - span.low + 1
+                    row += 1
                 }
-                index += span.high - span.low + 1
-                row += 1
             }
         }
     }

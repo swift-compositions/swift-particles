@@ -108,9 +108,10 @@ extension Particles.Light {
     /// With no persistence a trail of equal motes is that mote, one mote is itself, and a streak keeps the
     /// still mote's whole light, as a camera's shutter does; a persistence of 1 keeps its brightness instead.
     public mutating func add(trail motes: some Swift.Collection<Particles.Mote>, persistence: Double = 0) {
+        let motes = Array(motes)
         guard let first = motes.first else { return }
         guard motes.contains(where: { $0 != first }) else { return add(first) }
-        additions.append(.trail(Array(motes), persistence: persistence))
+        additions.append(.trail(motes, persistence: persistence))
     }
 
     /// Adds the light of another over the same rectangle at the same scale, pixel by pixel, so that parts of a
